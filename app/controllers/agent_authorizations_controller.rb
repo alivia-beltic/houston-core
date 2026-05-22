@@ -46,7 +46,7 @@ class AgentAuthorizationsController < ApplicationController
   private
 
   def load_agent
-    @agent = current_user.agents.find_or_initialize_by(id: params[:agent_id])
+    @agent = current_user.agents.find(params[:agent_id])
   end
 
   def agent_params

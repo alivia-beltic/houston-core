@@ -6,7 +6,7 @@ class CreateVerifiableCredentials < ActiveRecord::Migration[6.0]
       t.string  :subject_type,               null: false
       t.bigint  :subject_id,                 null: false
       t.string  :status,                     null: false, default: "active"
-      t.text    :signed_payload
+      t.text    :signed_payload_ciphertext
       t.jsonb   :claims,                     null: false, default: {}
       t.jsonb   :evidence_refs,              null: false, default: []
       t.bigint  :delegated_by_credential_id

@@ -27,6 +27,21 @@ class IdentityVerificationsController < ApplicationController
                 notice: "Submitted — Beltic is issuing your credential. You'll see it here in a moment."
   end
 
+  # DELETE /identity/verify
+  # Revokes the user's active Beltic credential. Cascades: all of the user's
+  # agent_authorization credentials become unusable (their delegated_by_subject_id
+  # points at a revoked credential) — Houston's verifier denies them.
+  def destroy
+    cred = current_user.beltic_user_credential
+    if cred&.active?
+      Houston::Beltic.issuer.revoke(cred.credential_id, reason: "revoked_by_user")
+      cred.update!(status: "revoked", revoked_at: Time.current)
+    end
+    current_user.update!(beltic_user_credential: nil, beltic_trust_level: nil)
+
+    redirect_to settings_identity_path, notice: "Identity credential revoked."
+  end
+
   private
 
   def attestation_complete?
