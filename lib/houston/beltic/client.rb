@@ -47,8 +47,11 @@ module Houston
         when 200..299
           body
         else
-          code    = body.is_a?(Hash) ? body["error_code"] : nil
-          message = body.is_a?(Hash) ? body["error_message"] || body["message"] : response.body
+          # Beltic's error envelope: { "error": { "code", "message", "details", "request_id" } }
+          # Older endpoints occasionally still flatten to top-level keys; tolerate both.
+          err = body.is_a?(Hash) ? (body["error"] || body) : {}
+          code    = err["code"] || err["error_code"]
+          message = err["message"] || err["error_message"] || response.body
           raise Houston::Beltic.error_for(
             code:        code,
             message:     message || "Beltic API error",

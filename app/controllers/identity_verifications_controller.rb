@@ -17,6 +17,14 @@ class IdentityVerificationsController < ApplicationController
       render :new, status: :unprocessable_entity and return
     end
 
+    # Beltic schema constraint: if id_document_type is set, id_document_country
+    # must also be set, and trust_level must be idv_verified (or higher). Enforce
+    # client-side so the user sees a clear error before we POST to Beltic.
+    if params[:id_document_type].present? && params[:id_document_country].blank?
+      flash[:error] = "Provide the ID document's issuing country when selecting a document type."
+      render :new, status: :unprocessable_entity and return
+    end
+
     Beltic::IssueCredentialJob.perform_later(
       kind:    :user,
       user_id: current_user.id,
@@ -58,7 +66,7 @@ class IdentityVerificationsController < ApplicationController
       date_of_birth:        params[:date_of_birth],
       id_document_type:     params[:id_document_type].presence,
       id_document_country:  params[:id_document_country].presence,
-      parent_business_id:   Houston::Beltic.config.org_credential_id,
+      parent_business_id:   Houston::Beltic.config.org_subject_id,
     }.compact
   end
 

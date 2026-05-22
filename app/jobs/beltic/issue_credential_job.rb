@@ -26,7 +26,7 @@ module Beltic
       user = User.find(user_id)
       subject = {
         type:       "person",
-        id:         "usr_#{user.id}",
+        id:         beltic_user_subject_id(user),
         email:      user.email,
         first_name: user.first_name,
         last_name:  user.last_name,
@@ -37,23 +37,25 @@ module Beltic
 
     def issue_agent_authorization(agent_id)
       agent = Agent.find(agent_id)
-      user_cred = agent.user.beltic_user_credential
-      raise "User #{agent.user.id} has no active Beltic credential" unless user_cred&.active?
+      user = agent.user
+      user_cred = user.beltic_user_credential
+      raise "User #{user.id} has no active Beltic credential" unless user_cred&.active?
 
+      user_subject_id = beltic_user_subject_id(user)
       subject = {
         type:                 "agent",
         id:                   agent.did,
         agent_external_id:    "agent_#{agent.id}",
-        parent_user_id:       user_cred.credential_id,
-        parent_business_id:   Houston::Beltic.config.org_credential_id,
+        parent_user_id:       user_subject_id,
+        parent_business_id:   Houston::Beltic.config.org_subject_id,
       }
-      claims = build_agent_claims(agent, user_cred)
+      claims = build_agent_claims(agent, user_subject_id)
       response = Houston::Beltic.issuer.issue_agent_authorization(subject: subject, claims: claims)
       persist!(response, subject_type: "Agent", subject_id: agent.id,
                          delegated_by_credential_id: user_cred.id)
     end
 
-    def build_agent_claims(agent, user_cred)
+    def build_agent_claims(agent, user_subject_id)
       {
         permissions: [{
           resource_type: "wallet",
@@ -63,7 +65,7 @@ module Beltic
             { operator: "lte", field: "transaction_amount", value: agent.per_transaction_max_cents }
           ],
         }],
-        delegated_by_subject_id: user_cred.credential_id,
+        delegated_by_subject_id: user_subject_id,
         spend_limit: {
           amount:   agent.spend_limit_amount_cents,
           currency: agent.spend_limit_currency,
@@ -73,6 +75,13 @@ module Beltic
         max_idle_duration:     agent.max_idle_duration_iso8601,
         human_present:         agent.confirmation_mode != "never",
       }
+    end
+
+    # Houston's convention for Beltic subject.id of a user. Stable across the
+    # user's lifetime; outlives any single credential. Beltic's schema accepts
+    # any string here — Houston standardizes on this prefix.
+    def beltic_user_subject_id(user)
+      "usr_#{user.id}"
     end
 
     def persist!(response, subject_type:, subject_id:, delegated_by_credential_id: nil)

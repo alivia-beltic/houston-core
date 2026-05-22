@@ -32,15 +32,26 @@ module Houston
     class PolicyDeniedError < VerificationError; end
     class WebhookSignatureError < Error; end
 
+    # Maps Beltic's `error.code` strings (see Beltic platform: packages/schemas/src/credentials/shared/responses.ts)
+    # to typed exception classes.
     ERROR_CODE_MAP = {
       "self_attestation_incomplete" => SelfAttestationIncompleteError,
+      "validation_failed"           => SchemaValidationError,
+      "malformed_request"           => SchemaValidationError,
+      "missing_required_field"      => SchemaValidationError,
+      "unauthorized"                => AuthenticationError,
+      "forbidden"                   => PermissionError,
+      "not_found"                   => NotFoundError,
+      "conflict"                    => APIError,
+      "idempotency_key_conflict"    => APIError,
+      "unprocessable_entity"        => APIError,
+      "internal_error"              => ServerError,
+      "upstream_error"              => ServerError,
+      "kms_signing_failed"          => ServerError,
+      "database_error"              => ServerError,
+      # Domain-level codes Houston may emit client-side or that Beltic returns in some flows
       "kyb_required"                => KYBRequiredError,
       "delegated_by_required"       => DelegationMissingError,
-      "schema_validation_failed"    => SchemaValidationError,
-      "authentication_failed"       => AuthenticationError,
-      "permission_denied"           => PermissionError,
-      "not_found"                   => NotFoundError,
-      "rate_limited"                => RateLimitError,
     }.freeze
 
     def self.error_for(code:, message:, http_status:, raw: nil)
